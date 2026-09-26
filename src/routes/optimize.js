@@ -84,6 +84,9 @@ router.post('/jd/suggest', asyncRoute(async (req, res) => {
     effort: 'high',
   })
   const suggestions = out.suggestions.filter(s => refExists(resume, s.target) && s.after.trim())
+  if (suggestions.length < out.suggestions.length) {
+    console.warn(`suggest: dropped ${out.suggestions.length - suggestions.length}/${out.suggestions.length} with unknown targets`, out.suggestions.filter(s => !suggestions.includes(s)).map(s => ({ kind: s.kind, target: s.target })))
+  }
   res.json({ mock: MOCK, suggestions })
 }))
 
