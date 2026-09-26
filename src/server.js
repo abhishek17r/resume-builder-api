@@ -2,7 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import { rateLimit } from 'express-rate-limit'
 import { router } from './routes/optimize.js'
-import { MOCK, MODEL, ModelError } from './claude.js'
+import { MOCK, MODEL, PROVIDER } from './ai.js'
+import { ModelError } from './errors.js'
 
 export function createApp() {
   const app = express()
@@ -12,7 +13,7 @@ export function createApp() {
   app.use(cors({ origin: origins }))
   app.use(express.json({ limit: '1mb' }))
 
-  app.get('/health', (_req, res) => res.json({ ok: true, mock: MOCK, model: MOCK ? null : MODEL }))
+  app.get('/health', (_req, res) => res.json({ ok: true, mock: MOCK, provider: PROVIDER, model: MODEL }))
 
   // AI calls cost money: cap each client.
   app.use('/api', rateLimit({ windowMs: 60_000, limit: Number(process.env.RATE_LIMIT_PER_MIN || 20), standardHeaders: 'draft-8', legacyHeaders: false }))
@@ -34,6 +35,6 @@ export function createApp() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.PORT || 8787)
   createApp().listen(port, () => {
-    console.log(`resume-builder-api on http://localhost:${port} — ${MOCK ? 'DEMO MODE (no ANTHROPIC_API_KEY; heuristic results)' : `model ${MODEL}`}`)
+    console.log(`resume-builder-api on http://localhost:${port} — ${MOCK ? 'DEMO MODE (no API key set; heuristic results)' : `${PROVIDER} · ${MODEL}`}`)
   })
 }

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { structured, MOCK } from '../claude.js'
+import { structured, MOCK } from '../ai.js'
 import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites } from '../schemas.js'
 import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM } from '../prompts.js'
 import { mockAnalyze, mockMatch, mockSuggest, mockImprove } from '../mock.js'
@@ -49,6 +49,7 @@ router.post('/jd/analyze', asyncRoute(async (req, res) => {
     system: ANALYZE_SYSTEM,
     volatile: `<job_description>\n${jobDescription}\n</job_description>`,
     schema: JobAnalysis,
+    name: 'job_analysis',
     effort: 'medium',
   })
   res.json({ mock: MOCK, analysis })
@@ -61,6 +62,7 @@ router.post('/jd/match', asyncRoute(async (req, res) => {
     stable: [`<resume>\n${resumeText(resume)}\n</resume>`],
     volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>`,
     schema: MatchResult,
+    name: 'match_result',
     effort: 'medium',
   })
   const known = new Set(analysis.requirements.map(r => r.id))
@@ -78,6 +80,7 @@ router.post('/jd/suggest', asyncRoute(async (req, res) => {
     stable: [`<resume>\n${resumeText(resume)}\n</resume>`],
     volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>\n<coverage>\n${JSON.stringify(match)}\n</coverage>`,
     schema: Suggestions,
+    name: 'suggestions',
     effort: 'high',
   })
   const suggestions = out.suggestions.filter(s => refExists(resume, s.target) && s.after.trim())
@@ -90,6 +93,7 @@ router.post('/improve', asyncRoute(async (req, res) => {
     system: IMPROVE_SYSTEM,
     volatile: `<context>${JSON.stringify(context)}</context>\n<bullets>\n${JSON.stringify(bullets)}\n</bullets>`,
     schema: Rewrites,
+    name: 'rewrites',
     effort: 'low',
   })
   const refs = new Set(bullets.map(b => b.ref))
