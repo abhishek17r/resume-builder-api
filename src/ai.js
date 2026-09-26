@@ -8,7 +8,15 @@ import { createOpenAIProvider } from './providers/openai.js'
 //   MOCK=1 forces demo mode (keyword heuristics, no API calls).
 const hasAnthropic = !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN)
 const hasOpenAI = !!process.env.OPENAI_API_KEY
-const wanted = (process.env.AI_PROVIDER || '').toLowerCase() || (hasAnthropic ? 'anthropic' : hasOpenAI ? 'openai' : '')
+
+// Accept common spellings ("OpenAI", "open_ai", "claude"…); anything else is a config error, not a silent fallback.
+const ALIASES = { openai: 'openai', gpt: 'openai', chatgpt: 'openai', anthropic: 'anthropic', claude: 'anthropic' }
+const raw = (process.env.AI_PROVIDER || '').trim()
+const normalised = raw.toLowerCase().replace(/[^a-z]/g, '')
+if (raw && !ALIASES[normalised]) {
+  throw new Error(`AI_PROVIDER="${raw}" isn't recognised. Use "openai" or "anthropic" (or leave it empty to pick from whichever key is set).`)
+}
+const wanted = ALIASES[normalised] || (hasAnthropic ? 'anthropic' : hasOpenAI ? 'openai' : '')
 
 export const MOCK = process.env.MOCK === '1' || !wanted || (wanted === 'anthropic' && !hasAnthropic) || (wanted === 'openai' && !hasOpenAI)
 

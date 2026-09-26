@@ -3,7 +3,7 @@ import { zodResponseFormat } from 'openai/helpers/zod'
 import { ModelError } from '../errors.js'
 
 // OpenAI via the official SDK: chat.completions.parse with a strict JSON-schema response format.
-export function createOpenAIProvider({ model = process.env.OPENAI_MODEL || 'gpt-5' } = {}) {
+export function createOpenAIProvider({ model = process.env.OPENAI_MODEL || 'gpt-5.5' } = {}) {
   const client = new OpenAI()
   // reasoning_effort only applies to reasoning models (gpt-5 family, o-series).
   const reasoning = /^(gpt-5|o\d)/.test(model)
