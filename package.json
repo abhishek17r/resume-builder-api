@@ -1,0 +1,23 @@
+{
+  "name": "resume-builder-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend for Resume Builder: resume optimisation and job-description tailoring via the Claude API.",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "test": "MOCK=1 node --test \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
+    "zod": "^4.6.5"
+  }
+}
