@@ -71,6 +71,7 @@ export function mockImprove(bullets) {
   return {
     rewrites: bullets.map(b => ({
       ref: b.ref,
+      verdict: 'rewritten',
       after: `${b.text.replace(/^(responsible for|helped( to)?|worked on|assisted( with)?|involved in)\s+/i, 'Led ').replace(/^I\s+/, '').replace(/\.$/, '')}, improving [metric] by [X]%.`,
       reason: `Demo mode: fixes “${b.issue}” with a template rewrite.`,
     })),

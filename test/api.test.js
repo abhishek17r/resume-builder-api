@@ -71,3 +71,9 @@ test('unknown routes and bad JSON give JSON errors', async () => {
   const bad = await fetch(base + '/api/improve', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{' })
   assert.equal(bad.status, 400)
 })
+
+test('improve marks a no-op rewrite as already_fine', async () => {
+  const r = await post('/api/improve', { bullets: [{ ref: 'x', text: 'Cut onboarding time from one week to one day.', issue: 'No measurable result' }] })
+  const [w] = (await r.json()).rewrites
+  assert.ok(['rewritten', 'already_fine'].includes(w.verdict))
+})

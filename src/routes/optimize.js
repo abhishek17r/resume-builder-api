@@ -99,6 +99,10 @@ router.post('/improve', asyncRoute(async (req, res) => {
     name: 'rewrites',
     effort: 'low',
   })
-  const refs = new Set(bullets.map(b => b.ref))
-  res.json({ mock: MOCK, rewrites: out.rewrites.filter(r => refs.has(r.ref)) })
+  const byRef = new Map(bullets.map(b => [b.ref, b]))
+  const norm = t => t.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const rewrites = out.rewrites
+    .filter(r => byRef.has(r.ref))
+    .map(r => (r.verdict === 'rewritten' && norm(r.after) === norm(byRef.get(r.ref).text) ? { ...r, verdict: 'already_fine', after: byRef.get(r.ref).text } : r))
+  res.json({ mock: MOCK, rewrites })
 }))

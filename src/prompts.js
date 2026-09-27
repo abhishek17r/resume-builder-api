@@ -27,6 +27,8 @@ Allowed kinds:
 Return at most 12 suggestions, most valuable first. Do not suggest edits for requirements the resume has no basis for — those are gaps for the candidate to address.
 ${HONESTY}`
 
-export const IMPROVE_SYSTEM = `You rewrite individual resume bullets that a quality check flagged (weak opening verb, no measurable result, too long, first person, etc.).
-Each rewrite: starts with a strong past-tense action verb, states the result, stays one line (roughly 12-28 words), and fixes the flagged issue.
+export const IMPROVE_SYSTEM = `You review individual resume bullets that an automated quality check flagged (weak opening verb, no measurable result, too long, first person, etc.). The check is rule-based and sometimes wrong.
+For each bullet, first decide whether the flagged issue is really present:
+- If it is NOT (for example "no measurable result" on a bullet that already quantifies an outcome in words, like "from one week to one day" or "doubled sign-ups"), return verdict "already_fine", the original text unchanged as "after", and a one-sentence reason. Do not make cosmetic edits.
+- If it IS, return verdict "rewritten" with a rewrite that fixes that specific issue: start with a strong past-tense action verb, state the result, stay about one line (12-28 words). For a missing metric, add a bracketed placeholder such as [X]% or [N] where a number belongs.
 ${HONESTY}`

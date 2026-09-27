@@ -95,7 +95,8 @@ export const ImproveRequest = z.object({
 export const Rewrites = z.object({
   rewrites: z.array(z.object({
     ref: z.string(),
-    after: z.string().describe('Rewritten bullet; [X] placeholders for unknown numbers'),
-    reason: z.string(),
+    verdict: z.enum(['rewritten', 'already_fine']).describe('already_fine when the flagged issue is not actually present'),
+    after: z.string().describe('Rewritten bullet (or the original, unchanged, when already_fine); [X] placeholders for unknown numbers'),
+    reason: z.string().describe('For rewritten: what changed and how it fixes the issue. For already_fine: why the issue does not apply.'),
   })),
 })
