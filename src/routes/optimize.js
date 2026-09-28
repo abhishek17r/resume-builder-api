@@ -166,7 +166,8 @@ router.post('/resume/compose', asyncRoute(async (req, res) => {
   for (const e of out.entries) {
     const item = itemByRef.get(e.itemRef)
     if (!item || item.kind === 'skills' || item.kind === 'summaries') continue
-    const roleTitle = item.roles.some(r => r.title === e.roleTitle) ? e.roleTitle : ''
+    const roleNorm = t => (t || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+    const roleTitle = item.roles.find(r => roleNorm(r.title) === roleNorm(e.roleTitle))?.title ?? ''
     const key = `${item.ref}|${roleTitle}`
     if (used.has(key)) continue
     used.add(key)
