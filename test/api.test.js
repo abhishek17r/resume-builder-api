@@ -97,3 +97,20 @@ test('vault/match validates and only returns known refs', async () => {
   assert.deepEqual(body.picks.map(p => p.ref), ['v1'])
   assert.deepEqual(body.picks[0].requirementIds, ['r1'])
 })
+
+test('resume/compose keeps only known refs, owned by their item', async () => {
+  const analysis = { title: 'Backend', company: '', seniority: 'senior', summary: '', requirements: [{ id: 'r1', text: 'Kafka', category: 'tool', importance: 'must', keywords: ['Kafka'] }] }
+  const items = [
+    { ref: 'i1', kind: 'experience', title: 'Stripe', roles: [{ title: 'Engineer', dates: '2021 – Present' }], bullets: [{ ref: 'b1', text: 'Moved billing to Kafka.', role: 'Engineer', score: 90 }, { ref: 'b2', text: 'Ran the offsite.', role: 'Engineer', score: 40 }] },
+    { ref: 'i2', kind: 'skills', title: 'Systems', bullets: [{ ref: 's1', text: 'Kafka' }, { ref: 's2', text: 'Excel' }] },
+    { ref: 'i3', kind: 'summaries', title: 'Profile summaries', bullets: [{ ref: 'p1', text: 'Backend engineer.' }] },
+  ]
+  const r = await post('/api/resume/compose', { analysis, targetBullets: 6, items })
+  const { composition } = await r.json()
+  assert.equal(r.status, 200)
+  assert.equal(composition.summaryRef, 'p1')
+  assert.deepEqual(composition.entries.map(e => [e.itemRef, e.roleTitle, e.bulletRefs[0]]), [['i1', 'Engineer', 'b1']])
+  assert.equal(composition.skillRefs[0], 's1')
+  const bad = await post('/api/resume/compose', { analysis, items: [] })
+  assert.equal(bad.status, 400)
+})

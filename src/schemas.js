@@ -136,3 +136,34 @@ export const VaultPicks = z.object({
     reason: z.string().describe('One short sentence: what this bullet proves for the job'),
   })).describe('At most 10, most useful first; only bullets that genuinely help'),
 })
+
+// Build a resume for a job from the vault: the model only chooses and orders existing content by ref.
+export const ComposeRequest = z.object({
+  analysis: JobAnalysis,
+  targetBullets: z.number().int().min(6).max(60).default(18),
+  items: z.array(z.object({
+    ref: z.string().max(100),
+    kind: z.string().max(40),
+    title: z.string().max(300),
+    subtitle: z.string().max(300).default(''),
+    roles: z.array(z.object({ title: z.string().max(300), dates: z.string().max(80).default('') })).max(20).default([]),
+    dates: z.string().max(80).default(''),
+    bullets: z.array(z.object({
+      ref: z.string().max(100),
+      text: z.string().min(1).max(3000),
+      role: z.string().max(300).default(''),
+      score: z.number().min(0).max(100).optional(),
+    })).max(200),
+  })).min(1).max(200),
+})
+
+export const Composition = z.object({
+  summaryRef: z.string().describe('Ref of the best-fitting summary bullet, or empty string if none fits'),
+  entries: z.array(z.object({
+    itemRef: z.string(),
+    roleTitle: z.string().describe('For companies: which role (exact title from roles); empty otherwise'),
+    bulletRefs: z.array(z.string()).describe('Chosen bullet refs for this entry, most relevant first'),
+  })).describe('Entries to include, in the order they should appear within their kind'),
+  skillRefs: z.array(z.string()).describe('Skill bullet refs to include, most relevant first'),
+  gaps: z.array(z.string()).describe('Must-have requirements with no evidence anywhere in the vault, in a few words each'),
+})

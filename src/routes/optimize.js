@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { structured, MOCK } from '../ai.js'
-import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult, VaultMatchRequest, VaultPicks } from '../schemas.js'
-import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM, VAULT_MATCH_SYSTEM } from '../prompts.js'
-import { mockAnalyze, mockMatch, mockSuggest, mockImprove, mockVaultMatch } from '../mock.js'
+import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult, VaultMatchRequest, VaultPicks, ComposeRequest, Composition } from '../schemas.js'
+import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM, VAULT_MATCH_SYSTEM, COMPOSE_SYSTEM } from '../prompts.js'
+import { mockAnalyze, mockMatch, mockSuggest, mockImprove, mockVaultMatch, mockCompose } from '../mock.js'
 
 export const router = Router()
 
@@ -146,4 +146,35 @@ router.post('/vault/match', asyncRoute(async (req, res) => {
     .map(p => ({ ...p, requirementIds: p.requirementIds.filter(id => reqIds.has(id)) }))
     .slice(0, 10)
   res.json({ mock: MOCK, picks })
+}))
+
+// Choose vault content for a new resume tailored to a job. Returns refs only; the frontend builds the resume.
+router.post('/resume/compose', asyncRoute(async (req, res) => {
+  const { analysis, targetBullets, items } = validate(ComposeRequest, req.body)
+  const out = MOCK ? mockCompose(analysis, items, targetBullets) : await structured({
+    system: COMPOSE_SYSTEM,
+    stable: [`<vault>\n${JSON.stringify(items)}\n</vault>`],
+    volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>\n<target_bullets>${targetBullets}</target_bullets>`,
+    schema: Composition,
+    name: 'composition',
+    effort: 'medium',
+  })
+  const itemByRef = new Map(items.map(i => [i.ref, i]))
+  const bulletOwner = new Map(items.flatMap(i => i.bullets.map(b => [b.ref, i])))
+  const used = new Set()
+  const entries = []
+  for (const e of out.entries) {
+    const item = itemByRef.get(e.itemRef)
+    if (!item || item.kind === 'skills' || item.kind === 'summaries') continue
+    const roleTitle = item.roles.some(r => r.title === e.roleTitle) ? e.roleTitle : ''
+    const key = `${item.ref}|${roleTitle}`
+    if (used.has(key)) continue
+    used.add(key)
+    const bulletRefs = [...new Set(e.bulletRefs)].filter(ref => bulletOwner.get(ref) === item)
+    entries.push({ itemRef: item.ref, roleTitle, bulletRefs })
+  }
+  const skillRefs = [...new Set(out.skillRefs)].filter(ref => bulletOwner.get(ref)?.kind === 'skills')
+  const summaryRef = bulletOwner.get(out.summaryRef)?.kind === 'summaries' ? out.summaryRef : ''
+  if (entries.length < out.entries.length) console.warn(`compose: dropped ${out.entries.length - entries.length}/${out.entries.length} entries with unknown refs`)
+  res.json({ mock: MOCK, composition: { summaryRef, entries, skillRefs, gaps: out.gaps.slice(0, 10) } })
 }))

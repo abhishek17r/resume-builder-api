@@ -87,3 +87,17 @@ export function mockVaultMatch(analysis, candidates) {
   }).filter(p => p.requirementIds.length).sort((a, b) => b.requirementIds.length - a.requirementIds.length).slice(0, 10)
   return { picks }
 }
+
+// Demo mode: keep every entry, rank bullets by keyword hits then score.
+export function mockCompose(analysis, items, targetBullets) {
+  const kws = analysis.requirements.flatMap(r => r.keywords).map(k => k.toLowerCase()).filter(Boolean)
+  const hits = t => kws.filter(k => t.toLowerCase().includes(k)).length
+  const rank = bs => [...bs].sort((a, b) => hits(b.text) - hits(a.text) || (b.score ?? 0) - (a.score ?? 0))
+  const per = Math.max(2, Math.round(targetBullets / Math.max(1, items.filter(i => i.kind === 'experience').length)))
+  const entries = items.filter(i => !['skills', 'summaries', 'education'].includes(i.kind)).flatMap(i => (i.roles.length ? i.roles.map(r => r.title) : ['']).map(role => ({
+    itemRef: i.ref, roleTitle: role, bulletRefs: rank(i.bullets.filter(b => !role || !b.role || b.role === role)).slice(0, i.kind === 'experience' ? per : 2).map(b => b.ref),
+  })))
+  const skills = items.filter(i => i.kind === 'skills').flatMap(i => rank(i.bullets)).map(b => b.ref)
+  const summary = items.find(i => i.kind === 'summaries')?.bullets[0]?.ref ?? ''
+  return { summaryRef: summary, entries, skillRefs: skills, gaps: [] }
+}
