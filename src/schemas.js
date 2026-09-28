@@ -141,6 +141,7 @@ export const VaultPicks = z.object({
 export const ComposeRequest = z.object({
   analysis: JobAnalysis,
   targetBullets: z.number().int().min(6).max(60).default(18),
+  headlines: z.array(z.string().max(300)).max(20).default([]),
   items: z.array(z.object({
     ref: z.string().max(100),
     kind: z.string().max(40),
@@ -159,6 +160,7 @@ export const ComposeRequest = z.object({
 
 export const Composition = z.object({
   summaryRef: z.string().describe('Ref of the best-fitting summary bullet, or empty string if none fits'),
+  headline: z.string().describe('The best-fitting headline, copied exactly from the headlines list, or empty string'),
   entries: z.array(z.object({
     itemRef: z.string(),
     roleTitle: z.string().describe('For companies: which role (exact title from roles); empty otherwise'),

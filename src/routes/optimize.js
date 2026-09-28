@@ -150,11 +150,11 @@ router.post('/vault/match', asyncRoute(async (req, res) => {
 
 // Choose vault content for a new resume tailored to a job. Returns refs only; the frontend builds the resume.
 router.post('/resume/compose', asyncRoute(async (req, res) => {
-  const { analysis, targetBullets, items } = validate(ComposeRequest, req.body)
-  const out = MOCK ? mockCompose(analysis, items, targetBullets) : await structured({
+  const { analysis, targetBullets, headlines, items } = validate(ComposeRequest, req.body)
+  const out = MOCK ? mockCompose(analysis, items, targetBullets, headlines) : await structured({
     system: COMPOSE_SYSTEM,
     stable: [`<vault>\n${JSON.stringify(items)}\n</vault>`],
-    volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>\n<target_bullets>${targetBullets}</target_bullets>`,
+    volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>\n<headlines>\n${JSON.stringify(headlines)}\n</headlines>\n<target_bullets>${targetBullets}</target_bullets>`,
     schema: Composition,
     name: 'composition',
     effort: 'medium',
@@ -176,5 +176,6 @@ router.post('/resume/compose', asyncRoute(async (req, res) => {
   const skillRefs = [...new Set(out.skillRefs)].filter(ref => bulletOwner.get(ref)?.kind === 'skills')
   const summaryRef = bulletOwner.get(out.summaryRef)?.kind === 'summaries' ? out.summaryRef : ''
   if (entries.length < out.entries.length) console.warn(`compose: dropped ${out.entries.length - entries.length}/${out.entries.length} entries with unknown refs`)
-  res.json({ mock: MOCK, composition: { summaryRef, entries, skillRefs, gaps: out.gaps.slice(0, 10) } })
+  const headline = headlines.includes(out.headline) ? out.headline : ''
+  res.json({ mock: MOCK, composition: { summaryRef, headline, entries, skillRefs, gaps: out.gaps.slice(0, 10) } })
 }))

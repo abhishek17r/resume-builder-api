@@ -105,10 +105,11 @@ test('resume/compose keeps only known refs, owned by their item', async () => {
     { ref: 'i2', kind: 'skills', title: 'Systems', bullets: [{ ref: 's1', text: 'Kafka' }, { ref: 's2', text: 'Excel' }] },
     { ref: 'i3', kind: 'summaries', title: 'Profile summaries', bullets: [{ ref: 'p1', text: 'Backend engineer.' }] },
   ]
-  const r = await post('/api/resume/compose', { analysis, targetBullets: 6, items })
+  const r = await post('/api/resume/compose', { analysis, targetBullets: 6, headlines: ['Backend Engineer'], items })
   const { composition } = await r.json()
   assert.equal(r.status, 200)
   assert.equal(composition.summaryRef, 'p1')
+  assert.equal(composition.headline, 'Backend Engineer')
   assert.deepEqual(composition.entries.map(e => [e.itemRef, e.roleTitle, e.bulletRefs[0]]), [['i1', 'Engineer', 'b1']])
   assert.equal(composition.skillRefs[0], 's1')
   const bad = await post('/api/resume/compose', { analysis, items: [] })
