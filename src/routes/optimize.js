@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { structured, MOCK } from '../ai.js'
-import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult, VaultMatchRequest, VaultPicks, ComposeRequest, Composition } from '../schemas.js'
-import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM, VAULT_MATCH_SYSTEM, COMPOSE_SYSTEM } from '../prompts.js'
-import { mockAnalyze, mockMatch, mockSuggest, mockImprove, mockVaultMatch, mockCompose } from '../mock.js'
+import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult, VaultMatchRequest, VaultPicks, ComposeRequest, Composition, TailorRequest, Tailored } from '../schemas.js'
+import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM, VAULT_MATCH_SYSTEM, COMPOSE_SYSTEM, TAILOR_SYSTEM } from '../prompts.js'
+import { mockAnalyze, mockMatch, mockSuggest, mockImprove, mockVaultMatch, mockCompose, mockTailor } from '../mock.js'
 
 export const router = Router()
 
@@ -178,4 +178,67 @@ router.post('/resume/compose', asyncRoute(async (req, res) => {
   if (entries.length < out.entries.length) console.warn(`compose: dropped ${out.entries.length - entries.length}/${out.entries.length} entries with unknown refs`)
   const headline = headlines.includes(out.headline) ? out.headline : ''
   res.json({ mock: MOCK, composition: { summaryRef, headline, entries, skillRefs, gaps: out.gaps.slice(0, 10) } })
+}))
+
+// ---------- tailoring guards: the model proposes, these checks decide ----------
+const numbersIn = t => new Set((t.match(/[$€£₹]?\d[\d,.]*\s*(?:%|[kmb]\b|x\b)?/gi) ?? []).map(n => n.toLowerCase().replace(/[,\s]/g, '').replace(/\.$/, '')))
+const wordsIn = t => new Set(t.toLowerCase().match(/[a-z][a-z+#.-]*/g) ?? [])
+const sameSet = (a, b) => a.size === b.size && [...a].every(x => b.has(x))
+const overlap = (a, b) => { let n = 0; for (const x of a) if (b.has(x)) n++; return n / Math.max(1, Math.min(a.size, b.size)) }
+const normSkill = t => t.toLowerCase().replace(/[^a-z0-9+#.]+/g, ' ').trim()
+
+// A light edit: same numbers, similar length, mostly the same words. Returns why an edit is refused, or '' if accepted.
+export function bulletEditProblem(before, after) {
+  const a = (after ?? '').trim()
+  if (!a || a === before) return 'unchanged'
+  if (/\[[^\]]*\]/.test(a) && !/\[[^\]]*\]/.test(before)) return 'placeholder' // no placeholders when tailoring
+  if (!sameSet(numbersIn(before), numbersIn(a))) return 'numbers'
+  const ratio = a.length / before.length
+  if (ratio < 0.8 || ratio > 1.25) return 'length'
+  if (overlap(wordsIn(before), wordsIn(a)) < 0.6) return 'rewrite'
+  return ''
+}
+export const acceptBulletEdit = (before, after) => bulletEditProblem(before, after) === ''
+
+router.post('/resume/tailor', asyncRoute(async (req, res) => {
+  const input = validate(TailorRequest, req.body)
+  const { analysis, headlines, summaries, roles, bullets, skills } = input
+  const out = MOCK ? mockTailor(input) : await structured({
+    system: TAILOR_SYSTEM,
+    stable: [`<material>\n${JSON.stringify({ headlines, summaries, roles, bullets, skills })}\n</material>`],
+    volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>`,
+    schema: Tailored,
+    name: 'tailored',
+    effort: 'medium',
+  })
+
+  const corpus = [...headlines, ...summaries, ...roles, ...bullets.map(b => b.text), ...skills.flatMap(g => g.items)].join(' \n ')
+  const corpusNumbers = numbersIn(corpus)
+  const corpusLower = corpus.toLowerCase()
+
+  const byRef = new Map(out.bullets.map(b => [b.ref, b.text]))
+  const refused = {}
+  const tailoredBullets = bullets.map(b => {
+    const after = byRef.get(b.ref)
+    const problem = bulletEditProblem(b.text, after)
+    if (problem) refused[problem] = (refused[problem] ?? 0) + 1
+    return problem ? { ref: b.ref, text: b.text, changed: false } : { ref: b.ref, text: after.trim(), changed: true }
+  })
+
+  // Summary: every number must come from the material; otherwise use their own summary.
+  let summary = out.summary.trim().replace(/^(I|I'm|I am)\s+/, '')
+  const summaryOk = summary && summary.split(/\s+/).length <= 90 && !/\[[^\]]*\]/.test(summary) && [...numbersIn(summary)].every(n => corpusNumbers.has(n))
+  if (!summaryOk) summary = summaries[0] ?? ''
+
+  let headline = out.headline.trim()
+  if (!headline || headline.length > 120 || ![...numbersIn(headline)].every(n => corpusNumbers.has(n))) headline = headlines[0] ?? ''
+
+  // Skills: only ones the candidate listed, or that their material mentions.
+  const known = new Set(skills.flatMap(g => g.items).map(normSkill))
+  const tailoredSkills = out.skills
+    .map(g => ({ group: g.group.trim(), items: [...new Set(g.items.map(i => i.trim()).filter(i => i && (known.has(normSkill(i)) || corpusLower.includes(i.toLowerCase()))))] }))
+    .filter(g => g.group && g.items.length)
+  if (Object.keys(refused).length) console.log('tailor: bullets kept as they were —', refused)
+
+  res.json({ mock: MOCK, tailored: { headline, summary, bullets: tailoredBullets, skills: tailoredSkills.length ? tailoredSkills : skills } })
 }))

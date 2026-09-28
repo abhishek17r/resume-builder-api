@@ -169,3 +169,27 @@ export const Composition = z.object({
   skillRefs: z.array(z.string()).describe('Skill bullet refs to include, most relevant first'),
   gaps: z.array(z.string()).describe('Must-have requirements with no evidence anywhere in the vault, in a few words each'),
 })
+
+// Tailor chosen vault content to a job: headline, summary, light bullet edits, skills.
+export const TailorRequest = z.object({
+  analysis: JobAnalysis,
+  headlines: z.array(z.string().max(300)).max(20).default([]),
+  summaries: z.array(z.string().max(3000)).max(10).default([]),
+  roles: z.array(z.string().max(300)).max(40).default([]),
+  bullets: z.array(z.object({
+    ref: z.string().max(100),
+    text: z.string().min(1).max(3000),
+    context: z.string().max(300).default(''),
+  })).max(80),
+  skills: z.array(z.object({ group: z.string().max(100), items: z.array(z.string().max(100)).max(60) })).max(20).default([]),
+})
+
+export const Tailored = z.object({
+  headline: z.string().describe('Professional title line for this job, grounded in the candidate\'s real roles'),
+  summary: z.string().describe('2-3 sentence profile summary for this job, using only facts from the material'),
+  bullets: z.array(z.object({
+    ref: z.string(),
+    text: z.string().describe('The bullet with light, truthful wording changes, or unchanged'),
+  })),
+  skills: z.array(z.object({ group: z.string(), items: z.array(z.string()) })).describe('Skill groups, most relevant first'),
+})

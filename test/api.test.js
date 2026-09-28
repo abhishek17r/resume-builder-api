@@ -1,6 +1,7 @@
 import { test, before, after } from 'node:test'
 import assert from 'node:assert/strict'
 import { createApp } from '../src/server.js'
+import { acceptBulletEdit } from '../src/routes/optimize.js'
 
 // Runs in demo mode (MOCK=1 via npm test): checks validation, shapes and reference filtering.
 let server
@@ -114,4 +115,24 @@ test('resume/compose keeps only known refs, owned by their item', async () => {
   assert.equal(composition.skillRefs[0], 's1')
   const bad = await post('/api/resume/compose', { analysis, items: [] })
   assert.equal(bad.status, 400)
+})
+
+
+test('light-edit guard keeps numbers and length', () => {
+  const before = 'Cut p99 API latency by 45% by redesigning request fan-out and caching.'
+  assert.equal(acceptBulletEdit(before, 'Cut p99 API latency by 45% by redesigning request fan-out and Redis caching.'), true)
+  assert.equal(acceptBulletEdit(before, 'Cut p99 API latency by 60% by redesigning request fan-out and caching.'), false) // changed number
+  assert.equal(acceptBulletEdit(before, 'Improved performance.'), false) // too short
+  assert.equal(acceptBulletEdit(before, 'Cut p99 API latency by 45% for [N] merchants by redesigning fan-out and caching.'), false) // placeholder
+  assert.equal(acceptBulletEdit(before, 'Spearheaded a transformative initiative to reimagine our distributed caching strategy.'), false) // heavy rewrite
+})
+
+test('resume/tailor drops unsupported skills and keeps bullets in demo mode', async () => {
+  const analysis = { title: 'Backend', company: '', seniority: 'senior', summary: '', requirements: [{ id: 'r1', text: 'Kafka', category: 'tool', importance: 'must', keywords: ['Kafka'] }] }
+  const r = await post('/api/resume/tailor', { analysis, headlines: ['Backend Engineer'], summaries: ['Backend engineer.'], bullets: [{ ref: 'b1', text: 'Moved billing to Kafka.' }], skills: [{ group: 'Tools', items: ['Excel', 'Kafka'] }] })
+  const { tailored } = await r.json()
+  assert.equal(r.status, 200)
+  assert.equal(tailored.headline, 'Backend Engineer')
+  assert.equal(tailored.bullets[0].text, 'Moved billing to Kafka.')
+  assert.deepEqual(tailored.skills[0].items, ['Excel', 'Kafka'])
 })

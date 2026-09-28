@@ -101,3 +101,15 @@ export function mockCompose(analysis, items, targetBullets, headlines = []) {
   const summary = items.find(i => i.kind === 'summaries')?.bullets[0]?.ref ?? ''
   return { summaryRef: summary, headline: headlines[0] ?? '', entries, skillRefs: skills, gaps: [] }
 }
+
+// Demo mode: no rewriting; relevant skill groups first.
+export function mockTailor({ analysis, headlines, summaries, bullets, skills }) {
+  const kws = analysis.requirements.flatMap(r => r.keywords).map(k => k.toLowerCase())
+  const rel = g => g.items.filter(i => kws.some(k => i.toLowerCase().includes(k))).length
+  return {
+    headline: headlines[0] ?? analysis.title,
+    summary: summaries[0] ?? '',
+    bullets: bullets.map(b => ({ ref: b.ref, text: b.text })),
+    skills: [...skills].sort((a, b) => rel(b) - rel(a)),
+  }
+}
