@@ -22,7 +22,8 @@ All return JSON; errors are `{ "error": { "code", "message" } }`.
 | POST | `/api/jd/analyze` | `{ jobDescription }` | `{ analysis }` — title, company, seniority, requirements (must/nice, keywords) |
 | POST | `/api/jd/match` | `{ resume, analysis }` | `{ match }` — matchScore, per-requirement covered/partial/missing with evidence refs |
 | POST | `/api/jd/suggest` | `{ resume, analysis, match }` | `{ suggestions }` — tracked-change edits (rewrite bullet/summary, add skill, move bullet up) |
-| POST | `/api/improve` | `{ bullets: [{ ref, text, issue }] }` | `{ rewrites }` — fixes for bullets flagged by the quality checks |
+| POST | `/api/improve` | `{ bullets: [{ ref, text, issue }] }` | `{ rewrites }` — fix or `already_fine` verdict per flagged bullet |
+| POST | `/api/vault/tag` | `{ taxonomy, bullets: [{ ref, text, context }] }` | `{ tags }` — 1–3 tag ids per bullet from the taxonomy the frontend sends |
 
 `resume` is the compact payload the frontend builds: sections → entries → numbered bullets. Every reference the model returns is checked against it before responding.
 

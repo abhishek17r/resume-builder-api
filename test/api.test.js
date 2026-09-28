@@ -77,3 +77,12 @@ test('improve marks a no-op rewrite as already_fine', async () => {
   const [w] = (await r.json()).rewrites
   assert.ok(['rewritten', 'already_fine'].includes(w.verdict))
 })
+
+test('vault tagging validates input and returns no tags in demo mode', async () => {
+  const bad = await post('/api/vault/tag', { taxonomy: [], bullets: [] })
+  assert.equal(bad.status, 400)
+  const r = await post('/api/vault/tag', { taxonomy: [{ id: 'people', label: 'People management', description: 'Hiring and mentoring' }], bullets: [{ ref: 'b1', text: 'Mentored 8 engineers.', context: 'Stripe' }] })
+  const body = await r.json()
+  assert.equal(r.status, 200)
+  assert.deepEqual(body.tags, [])
+})

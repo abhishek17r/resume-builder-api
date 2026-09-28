@@ -100,3 +100,20 @@ export const Rewrites = z.object({
     reason: z.string().describe('For rewritten: what changed and how it fixes the issue. For already_fine: why the issue does not apply.'),
   })),
 })
+
+// ---------- vault tagging ----------
+export const TagRequest = z.object({
+  taxonomy: z.array(z.object({ id: z.string().max(40), label: z.string().max(80), description: z.string().max(400) })).min(1).max(30),
+  bullets: z.array(z.object({
+    ref: z.string().max(100),
+    text: z.string().min(1).max(1500),
+    context: z.string().max(200).default(''),
+  })).min(1).max(60),
+})
+
+export const TagResult = z.object({
+  tags: z.array(z.object({
+    ref: z.string(),
+    tagIds: z.array(z.string()).describe('1-3 tag ids from the taxonomy, most relevant first; empty if none fit'),
+  })),
+})

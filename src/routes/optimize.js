@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { structured, MOCK } from '../ai.js'
-import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites } from '../schemas.js'
-import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM } from '../prompts.js'
+import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult } from '../schemas.js'
+import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM } from '../prompts.js'
 import { mockAnalyze, mockMatch, mockSuggest, mockImprove } from '../mock.js'
 
 export const router = Router()
@@ -105,4 +105,24 @@ router.post('/improve', asyncRoute(async (req, res) => {
     .filter(r => byRef.has(r.ref))
     .map(r => (r.verdict === 'rewritten' && norm(r.after) === norm(byRef.get(r.ref).text) ? { ...r, verdict: 'already_fine', after: byRef.get(r.ref).text } : r))
   res.json({ mock: MOCK, rewrites })
+}))
+
+// Classify vault bullets against the app's taxonomy (sent by the frontend, which owns the list).
+router.post('/vault/tag', asyncRoute(async (req, res) => {
+  const { taxonomy, bullets } = validate(TagRequest, req.body)
+  if (MOCK) return res.json({ mock: true, tags: [] }) // demo mode: keep the frontend's keyword tags
+  const out = await structured({
+    system: TAG_SYSTEM,
+    stable: [`<taxonomy>\n${JSON.stringify(taxonomy)}\n</taxonomy>`],
+    volatile: `<bullets>\n${JSON.stringify(bullets)}\n</bullets>`,
+    schema: TagResult,
+    name: 'tag_result',
+    effort: 'low',
+  })
+  const ids = new Set(taxonomy.map(t => t.id))
+  const refs = new Set(bullets.map(b => b.ref))
+  const tags = out.tags
+    .filter(t => refs.has(t.ref))
+    .map(t => ({ ref: t.ref, tagIds: [...new Set(t.tagIds.filter(id => ids.has(id)))].slice(0, 3) }))
+  res.json({ mock: false, tags })
 }))
