@@ -77,3 +77,13 @@ export function mockImprove(bullets) {
     })),
   }
 }
+
+// Demo mode: keyword overlap between each candidate and the requirements.
+export function mockVaultMatch(analysis, candidates) {
+  const picks = candidates.map(c => {
+    const t = c.text.toLowerCase()
+    const hits = analysis.requirements.filter(r => r.keywords.some(k => k && t.includes(k.toLowerCase())))
+    return { ref: c.ref, requirementIds: hits.map(r => r.id), reason: hits.length ? `Mentions ${hits.flatMap(r => r.keywords).filter(k => t.includes(k.toLowerCase())).slice(0, 3).join(', ')}.` : '' }
+  }).filter(p => p.requirementIds.length).sort((a, b) => b.requirementIds.length - a.requirementIds.length).slice(0, 10)
+  return { picks }
+}

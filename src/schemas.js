@@ -117,3 +117,22 @@ export const TagResult = z.object({
     tagIds: z.array(z.string()).describe('1-3 tag ids from the taxonomy, most relevant first; empty if none fit'),
   })),
 })
+
+// Pick vault bullets (already written by the user) that would strengthen a resume for a job.
+export const VaultMatchRequest = z.object({
+  analysis: JobAnalysis,
+  coverage: z.array(z.object({ id: z.string().max(40), status: z.enum(['covered', 'partial', 'missing']) })).max(60).default([]),
+  candidates: z.array(z.object({
+    ref: z.string().max(100),
+    text: z.string().min(1).max(1500),
+    context: z.string().max(200).default(''),
+  })).min(1).max(80),
+})
+
+export const VaultPicks = z.object({
+  picks: z.array(z.object({
+    ref: z.string(),
+    requirementIds: z.array(z.string()).describe('Requirement ids this bullet gives evidence for'),
+    reason: z.string().describe('One short sentence: what this bullet proves for the job'),
+  })).describe('At most 10, most useful first; only bullets that genuinely help'),
+})

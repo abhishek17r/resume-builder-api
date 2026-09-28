@@ -86,3 +86,14 @@ test('vault tagging validates input and returns no tags in demo mode', async () 
   assert.equal(r.status, 200)
   assert.deepEqual(body.tags, [])
 })
+
+test('vault/match validates and only returns known refs', async () => {
+  const bad = await post('/api/vault/match', { analysis: { title: 'x', company: '', seniority: 'unknown', summary: '', requirements: [] }, candidates: [] })
+  assert.equal(bad.status, 400)
+  const analysis = { title: 'Backend', company: '', seniority: 'senior', summary: '', requirements: [{ id: 'r1', text: 'Kafka', category: 'tool', importance: 'must', keywords: ['Kafka'] }] }
+  const r = await post('/api/vault/match', { analysis, coverage: [{ id: 'r1', status: 'missing' }], candidates: [{ ref: 'v1', text: 'Moved billing events to Kafka, cutting lag 90%.' }, { ref: 'v2', text: 'Organised the team offsite.' }] })
+  const body = await r.json()
+  assert.equal(r.status, 200)
+  assert.deepEqual(body.picks.map(p => p.ref), ['v1'])
+  assert.deepEqual(body.picks[0].requirementIds, ['r1'])
+})

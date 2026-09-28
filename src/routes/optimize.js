@@ -1,8 +1,8 @@
 import { Router } from 'express'
 import { structured, MOCK } from '../ai.js'
-import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult } from '../schemas.js'
-import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM } from '../prompts.js'
-import { mockAnalyze, mockMatch, mockSuggest, mockImprove } from '../mock.js'
+import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult, VaultMatchRequest, VaultPicks } from '../schemas.js'
+import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM, VAULT_MATCH_SYSTEM } from '../prompts.js'
+import { mockAnalyze, mockMatch, mockSuggest, mockImprove, mockVaultMatch } from '../mock.js'
 
 export const router = Router()
 
@@ -125,4 +125,25 @@ router.post('/vault/tag', asyncRoute(async (req, res) => {
     .filter(t => refs.has(t.ref))
     .map(t => ({ ref: t.ref, tagIds: [...new Set(t.tagIds.filter(id => ids.has(id)))].slice(0, 3) }))
   res.json({ mock: false, tags })
+}))
+
+// Choose vault bullets that add evidence for a job's requirements. Only picks from the candidates sent.
+router.post('/vault/match', asyncRoute(async (req, res) => {
+  const { analysis, coverage, candidates } = validate(VaultMatchRequest, req.body)
+  const out = MOCK ? mockVaultMatch(analysis, candidates) : await structured({
+    system: VAULT_MATCH_SYSTEM,
+    stable: [`<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>\n<coverage>\n${JSON.stringify(coverage)}\n</coverage>`],
+    volatile: `<candidates>\n${JSON.stringify(candidates)}\n</candidates>`,
+    schema: VaultPicks,
+    name: 'vault_picks',
+    effort: 'low',
+  })
+  const refs = new Set(candidates.map(c => c.ref))
+  const reqIds = new Set(analysis.requirements.map(r => r.id))
+  const seen = new Set()
+  const picks = out.picks
+    .filter(p => refs.has(p.ref) && !seen.has(p.ref) && seen.add(p.ref))
+    .map(p => ({ ...p, requirementIds: p.requirementIds.filter(id => reqIds.has(id)) }))
+    .slice(0, 10)
+  res.json({ mock: MOCK, picks })
 }))
