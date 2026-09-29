@@ -193,3 +193,19 @@ export const Tailored = z.object({
   })),
   skills: z.array(z.object({ group: z.string(), items: z.array(z.string()) })).describe('Skill groups, most relevant first'),
 })
+
+// Propose new vault tags (themes) from the candidate's bullets and the job descriptions they target.
+export const SuggestTagsRequest = z.object({
+  existing: z.array(z.string().max(80)).max(60).default([]),
+  jobs: z.array(z.object({ title: z.string().max(300).default(''), requirements: z.array(z.string().max(500)).max(40).default([]) })).max(20).default([]),
+  bullets: z.array(z.string().min(1).max(1500)).max(150).default([]),
+})
+
+export const TagSuggestions = z.object({
+  tags: z.array(z.object({
+    label: z.string().describe('Short tag name, 1-3 words, e.g. "Payments", "Regulatory compliance"'),
+    description: z.string().describe('What a bullet with this tag shows, one sentence'),
+    keywords: z.array(z.string()).describe('3-8 words or short phrases that signal this tag in a bullet'),
+    evidence: z.number().int().describe('How many of the given bullets show this'),
+  })).describe('At most 8 new tags, most useful first'),
+})

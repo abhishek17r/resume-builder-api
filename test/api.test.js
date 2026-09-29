@@ -136,3 +136,11 @@ test('resume/tailor drops unsupported skills and keeps bullets in demo mode', as
   assert.equal(tailored.bullets[0].text, 'Moved billing to Kafka.')
   assert.deepEqual(tailored.skills[0].items, ['Excel', 'Kafka'])
 })
+
+test('vault/suggest-tags validates and suggests nothing in demo mode', async () => {
+  const bad = await post('/api/vault/suggest-tags', { bullets: 'nope' })
+  assert.equal(bad.status, 400)
+  const r = await post('/api/vault/suggest-tags', { existing: ['Leadership'], jobs: [{ title: 'PM', requirements: ['Payments experience'] }], bullets: ['Launched payouts in 15 currencies.'] })
+  assert.equal(r.status, 200)
+  assert.deepEqual((await r.json()).tags, [])
+})

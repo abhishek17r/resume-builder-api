@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { structured, MOCK } from '../ai.js'
-import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult, VaultMatchRequest, VaultPicks, ComposeRequest, Composition, TailorRequest, Tailored } from '../schemas.js'
-import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM, VAULT_MATCH_SYSTEM, COMPOSE_SYSTEM, TAILOR_SYSTEM } from '../prompts.js'
+import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult, VaultMatchRequest, VaultPicks, ComposeRequest, Composition, TailorRequest, Tailored, SuggestTagsRequest, TagSuggestions } from '../schemas.js'
+import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM, VAULT_MATCH_SYSTEM, COMPOSE_SYSTEM, TAILOR_SYSTEM, SUGGEST_TAGS_SYSTEM } from '../prompts.js'
 import { mockAnalyze, mockMatch, mockSuggest, mockImprove, mockVaultMatch, mockCompose, mockTailor } from '../mock.js'
 
 export const router = Router()
@@ -242,4 +242,25 @@ router.post('/resume/tailor', asyncRoute(async (req, res) => {
   if (Object.keys(refused).length) console.log('tailor: bullets kept as they were —', refused)
 
   res.json({ mock: MOCK, tailored: { headline, summary, bullets: tailoredBullets, skills: tailoredSkills.length ? tailoredSkills : skills } })
+}))
+
+// New tags for the vault, inferred from bullets and target jobs. Demo mode suggests none (the app infers
+// library tags locally).
+router.post('/vault/suggest-tags', asyncRoute(async (req, res) => {
+  const { existing, jobs, bullets } = validate(SuggestTagsRequest, req.body)
+  if (MOCK || !bullets.length) return res.json({ mock: MOCK, tags: [] })
+  const out = await structured({
+    system: SUGGEST_TAGS_SYSTEM,
+    stable: [`<bullets>\n${JSON.stringify(bullets)}\n</bullets>`],
+    volatile: `<existing_tags>${JSON.stringify(existing)}</existing_tags>\n<jobs>\n${JSON.stringify(jobs)}\n</jobs>`,
+    schema: TagSuggestions,
+    name: 'tag_suggestions',
+    effort: 'low',
+  })
+  const have = new Set(existing.map(e => e.toLowerCase().trim()))
+  const tags = out.tags
+    .filter(t => t.label.trim() && !have.has(t.label.toLowerCase().trim()) && t.evidence >= 2)
+    .slice(0, 8)
+    .map(t => ({ label: t.label.trim().slice(0, 40), description: t.description.trim(), keywords: t.keywords.map(k => k.trim()).filter(Boolean).slice(0, 8) }))
+  res.json({ mock: false, tags })
 }))
