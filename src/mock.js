@@ -7,16 +7,27 @@ const TECH = /\b([A-Z][A-Za-z0-9+#.]{1,}(?:\s[A-Z][A-Za-z0-9+#.]+)?|[a-z]+(?:\.j
 const words = t => t.toLowerCase().match(/[a-z0-9+#.]+/g) ?? []
 
 export function mockAnalyze(jd) {
-  const lines = jd.split(/\n|(?<=\.)\s+/).map(l => l.replace(/^[\s•*-]+/, '').trim()).filter(l => l.length > 12 && l.length < 220)
-  const reqLines = lines.filter(l => /\b(experience|proficien|knowledge|familiar|degree|years|ability|skill|expert|background|track record)\b/i.test(l)).slice(0, 10)
-  const requirements = (reqLines.length ? reqLines : lines.slice(0, 6)).map((text, i) => {
-    const keywords = [...new Set((text.match(TECH) ?? []).filter(k => !STOP.has(k.toLowerCase())))].slice(0, 4)
-    const must = /\b(must|required|requirement|minimum|at least)\b/i.test(text) || i < 3
+  // Title and company from the first line: "Senior Engineer — Acme", "Senior Engineer at Acme".
+  const first = jd.split('\n').map(l => l.trim()).find(Boolean) ?? ''
+  const [, t1, c1] = /^(.{3,90}?)\s+(?:[—–|-]|at|@)\s+(.{2,60})$/.exec(first) ?? []
+  const title = (t1 ?? (first.length <= 90 ? first : 'Role from job description')).replace(/^job title:\s*/i, '').trim()
+  const company = (c1 ?? jd.match(/\bat ([A-Z][A-Za-z0-9&. ]{1,30})/)?.[1] ?? '').trim()
+
+  const lines = jd.split(/\n|(?<=\.)\s+/).map(l => l.replace(/^[\s•*-]+/, '').trim()).filter(l => l.length > 12 && l.length < 220 && l !== first)
+  const reqLines = lines.filter(l => /\b(experience|proficien|knowledge|familiar|degree|years|ability|skill|expert|background|track record|nice to have|bonus|preferred)\b/i.test(l)).slice(0, 10)
+  const requirements = (reqLines.length ? reqLines : lines.slice(0, 6)).map((raw, i) => {
+    const nice = /^(nice to have|bonus|preferred|plus)\b/i.test(raw) || /\b(is a plus|nice to have|preferred)\b/i.test(raw)
+    const text = raw.replace(/^(nice to have|bonus|preferred)\s*:\s*/i, '')
+    // Capitalised words and acronyms, but not a sentence's first word ("Hands-on", "Deep") unless it's an acronym.
+    const keywords = [...new Set([...text.matchAll(TECH)]
+      .map(m => (m.index === 0 && m[0].includes(' ') ? { index: 1, 0: m[0].split(' ').slice(1).join(' ') } : m)) // "Deep PostgreSQL" → PostgreSQL
+      .filter(m => m.index > 0 || /^[A-Z0-9+#.]{2,}$/.test(m[0]))
+      .map(m => m[0])
+      .filter(k => !STOP.has(k.toLowerCase())))].slice(0, 4)
     const category = /degree|bachelor|master|phd/i.test(text) ? 'education' : /lead|mentor|manage/i.test(text) ? 'leadership' : keywords.length ? 'tool' : 'experience'
-    return { id: `r${i + 1}`, text, category, importance: must ? 'must' : 'nice', keywords: keywords.length ? keywords : words(text).filter(w => w.length > 5 && !STOP.has(w)).slice(0, 3) }
+    return { id: `r${i + 1}`, text, category, importance: nice ? 'nice' : 'must', keywords: keywords.length ? keywords : words(text).filter(w => w.length > 5 && !STOP.has(w)).slice(0, 3) }
   })
-  const title = (jd.match(/^(?:job title:\s*)?([A-Z][^\n]{3,60})$/m)?.[1] ?? 'Role from job description').trim()
-  return { title, company: jd.match(/\bat ([A-Z][A-Za-z0-9&. ]{1,30})/)?.[1]?.trim() ?? '', seniority: /senior|staff|principal|lead/i.test(jd) ? 'senior' : 'unknown', summary: 'Demo mode: requirements picked out by keyword matching.', requirements }
+  return { title, company, seniority: /senior|staff|principal|lead/i.test(title || jd) ? 'senior' : 'unknown', summary: 'Demo mode: requirements picked out by keyword matching.', requirements }
 }
 
 function bulletsOf(resume) {
