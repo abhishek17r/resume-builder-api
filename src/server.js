@@ -35,6 +35,6 @@ export function createApp() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const port = Number(process.env.PORT || 8787)
   createApp().listen(port, () => {
-    console.log(`resume-builder-api on http://localhost:${port} — ${MOCK ? 'DEMO MODE (no API key set; heuristic results)' : `${PROVIDER} · ${MODEL}`}`)
+    console.log(`Offerstack AI server on http://localhost:${port} — ${MOCK ? 'DEMO MODE (no API key set; heuristic results)' : `${PROVIDER} · ${MODEL}`}`)
   })
 }

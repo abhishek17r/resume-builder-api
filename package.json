@@ -1,9 +1,9 @@
 {
-  "name": "resume-builder-api",
+  "name": "offerstack-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Backend for Resume Builder: resume optimisation and job-description tailoring via the Claude API.",
+  "description": "AI server for Offerstack: job analysis, tailoring, scoring and vault tagging through OpenAI or Anthropic.",
   "main": "src/server.js",
   "engines": {
     "node": ">=20"
@@ -20,5 +20,10 @@
     "express-rate-limit": "^8.7.0",
     "openai": "^7.23.0",
     "zod": "^4.6.5"
+  },
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abhishek17r/resume-builder-api.git"
   }
 }
