@@ -39,6 +39,9 @@ function toModelError(error) {
     return new ModelError(500, 'server_config', 'The server’s Claude API key is missing or invalid.')
   }
   if (error instanceof Anthropic.RateLimitError) return new ModelError(429, 'rate_limited', 'Too many requests right now — try again in a minute.')
+  if (error instanceof Anthropic.BadRequestError && /credit balance/i.test(error.message)) {
+    return new ModelError(402, 'no_credits', 'Your Anthropic account has no API credits left. Add credits in the Anthropic Console → Billing, or switch AI_PROVIDER in the server’s .env.')
+  }
   if (error instanceof Anthropic.BadRequestError) return new ModelError(502, 'bad_request', `Claude rejected the request: ${error.message}`)
   if (error instanceof Anthropic.APIConnectionError) return new ModelError(503, 'unreachable', 'Couldn’t reach the Claude API.')
   if (error instanceof Anthropic.APIError) return new ModelError(502, 'upstream', `Claude API error (${error.status}).`)

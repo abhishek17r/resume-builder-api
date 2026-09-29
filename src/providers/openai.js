@@ -38,6 +38,10 @@ function toModelError(error) {
   if (error instanceof OpenAI.AuthenticationError || error instanceof OpenAI.PermissionDeniedError) {
     return new ModelError(500, 'server_config', 'The server’s OpenAI API key is missing or invalid.')
   }
+  // OpenAI uses 429 both for rate limits and for an account with no credits left.
+  if (error instanceof OpenAI.RateLimitError && /insufficient_quota|credit_balance|billing/i.test(`${error.code} ${error.type} ${error.error?.code} ${error.error?.type}`)) {
+    return new ModelError(402, 'no_credits', 'Your OpenAI account has no API credits left. Add credits at platform.openai.com → Billing, or switch AI_PROVIDER in the server’s .env.')
+  }
   if (error instanceof OpenAI.RateLimitError) return new ModelError(429, 'rate_limited', 'Too many requests right now — try again in a minute.')
   if (error instanceof OpenAI.NotFoundError) return new ModelError(500, 'server_config', `OpenAI model not found — check OPENAI_MODEL (${error.message}).`)
   if (error instanceof OpenAI.BadRequestError) return new ModelError(502, 'bad_request', `OpenAI rejected the request: ${error.message}`)
