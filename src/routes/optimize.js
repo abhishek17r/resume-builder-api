@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { structured, MOCK } from '../ai.js'
+import { structured, isMock } from '../ai.js'
 import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult, VaultMatchRequest, VaultPicks, ComposeRequest, Composition, TailorRequest, Tailored, SuggestTagsRequest, TagSuggestions } from '../schemas.js'
 import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM, VAULT_MATCH_SYSTEM, COMPOSE_SYSTEM, TAILOR_SYSTEM, SUGGEST_TAGS_SYSTEM } from '../prompts.js'
 import { mockAnalyze, mockMatch, mockSuggest, mockImprove, mockVaultMatch, mockCompose, mockTailor } from '../mock.js'
@@ -45,19 +45,19 @@ function refExists(resume, { sectionId, entryId, bullet }) {
 
 router.post('/jd/analyze', asyncRoute(async (req, res) => {
   const { jobDescription } = validate(AnalyzeRequest, req.body)
-  const analysis = MOCK ? mockAnalyze(jobDescription) : await structured({
+  const analysis = isMock() ? mockAnalyze(jobDescription) : await structured({
     system: ANALYZE_SYSTEM,
     volatile: `<job_description>\n${jobDescription}\n</job_description>`,
     schema: JobAnalysis,
     name: 'job_analysis',
     effort: 'medium',
   })
-  res.json({ mock: MOCK, analysis })
+  res.json({ mock: isMock(), analysis })
 }))
 
 router.post('/jd/match', asyncRoute(async (req, res) => {
   const { resume, analysis } = validate(MatchRequest, req.body)
-  const match = MOCK ? mockMatch(resume, analysis) : await structured({
+  const match = isMock() ? mockMatch(resume, analysis) : await structured({
     system: MATCH_SYSTEM,
     stable: [`<resume>\n${resumeText(resume)}\n</resume>`],
     volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>`,
@@ -70,12 +70,12 @@ router.post('/jd/match', asyncRoute(async (req, res) => {
     .filter(r => known.has(r.id))
     .map(r => ({ ...r, evidence: r.evidence.filter(e => refExists(resume, e)) }))
   match.matchScore = Math.max(0, Math.min(100, Math.round(match.matchScore)))
-  res.json({ mock: MOCK, match })
+  res.json({ mock: isMock(), match })
 }))
 
 router.post('/jd/suggest', asyncRoute(async (req, res) => {
   const { resume, analysis, match } = validate(SuggestRequest, req.body)
-  const out = MOCK ? mockSuggest(resume, analysis, match) : await structured({
+  const out = isMock() ? mockSuggest(resume, analysis, match) : await structured({
     system: SUGGEST_SYSTEM,
     stable: [`<resume>\n${resumeText(resume)}\n</resume>`],
     volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>\n<coverage>\n${JSON.stringify(match)}\n</coverage>`,
@@ -87,12 +87,12 @@ router.post('/jd/suggest', asyncRoute(async (req, res) => {
   if (suggestions.length < out.suggestions.length) {
     console.warn(`suggest: dropped ${out.suggestions.length - suggestions.length}/${out.suggestions.length} with unknown targets`, out.suggestions.filter(s => !suggestions.includes(s)).map(s => ({ kind: s.kind, target: s.target })))
   }
-  res.json({ mock: MOCK, suggestions })
+  res.json({ mock: isMock(), suggestions })
 }))
 
 router.post('/improve', asyncRoute(async (req, res) => {
   const { context, bullets } = validate(ImproveRequest, req.body)
-  const out = MOCK ? mockImprove(bullets) : await structured({
+  const out = isMock() ? mockImprove(bullets) : await structured({
     system: IMPROVE_SYSTEM,
     volatile: `<context>${JSON.stringify(context)}</context>\n<bullets>\n${JSON.stringify(bullets)}\n</bullets>`,
     schema: Rewrites,
@@ -104,13 +104,13 @@ router.post('/improve', asyncRoute(async (req, res) => {
   const rewrites = out.rewrites
     .filter(r => byRef.has(r.ref))
     .map(r => (r.verdict === 'rewritten' && norm(r.after) === norm(byRef.get(r.ref).text) ? { ...r, verdict: 'already_fine', after: byRef.get(r.ref).text } : r))
-  res.json({ mock: MOCK, rewrites })
+  res.json({ mock: isMock(), rewrites })
 }))
 
 // Classify vault bullets against the app's taxonomy (sent by the frontend, which owns the list).
 router.post('/vault/tag', asyncRoute(async (req, res) => {
   const { taxonomy, bullets } = validate(TagRequest, req.body)
-  if (MOCK) return res.json({ mock: true, tags: [] }) // demo mode: keep the frontend's keyword tags
+  if (isMock()) return res.json({ mock: true, tags: [] }) // demo mode: keep the frontend's keyword tags
   const out = await structured({
     system: TAG_SYSTEM,
     stable: [`<taxonomy>\n${JSON.stringify(taxonomy)}\n</taxonomy>`],
@@ -130,7 +130,7 @@ router.post('/vault/tag', asyncRoute(async (req, res) => {
 // Choose vault bullets that add evidence for a job's requirements. Only picks from the candidates sent.
 router.post('/vault/match', asyncRoute(async (req, res) => {
   const { analysis, coverage, candidates } = validate(VaultMatchRequest, req.body)
-  const out = MOCK ? mockVaultMatch(analysis, candidates) : await structured({
+  const out = isMock() ? mockVaultMatch(analysis, candidates) : await structured({
     system: VAULT_MATCH_SYSTEM,
     stable: [`<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>\n<coverage>\n${JSON.stringify(coverage)}\n</coverage>`],
     volatile: `<candidates>\n${JSON.stringify(candidates)}\n</candidates>`,
@@ -145,13 +145,13 @@ router.post('/vault/match', asyncRoute(async (req, res) => {
     .filter(p => refs.has(p.ref) && !seen.has(p.ref) && seen.add(p.ref))
     .map(p => ({ ...p, requirementIds: p.requirementIds.filter(id => reqIds.has(id)) }))
     .slice(0, 10)
-  res.json({ mock: MOCK, picks })
+  res.json({ mock: isMock(), picks })
 }))
 
 // Choose vault content for a new resume tailored to a job. Returns refs only; the frontend builds the resume.
 router.post('/resume/compose', asyncRoute(async (req, res) => {
   const { analysis, targetBullets, headlines, items } = validate(ComposeRequest, req.body)
-  const out = MOCK ? mockCompose(analysis, items, targetBullets, headlines) : await structured({
+  const out = isMock() ? mockCompose(analysis, items, targetBullets, headlines) : await structured({
     system: COMPOSE_SYSTEM,
     stable: [`<vault>\n${JSON.stringify(items)}\n</vault>`],
     volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>\n<headlines>\n${JSON.stringify(headlines)}\n</headlines>\n<target_bullets>${targetBullets}</target_bullets>`,
@@ -178,7 +178,7 @@ router.post('/resume/compose', asyncRoute(async (req, res) => {
   const summaryRef = bulletOwner.get(out.summaryRef)?.kind === 'summaries' ? out.summaryRef : ''
   if (entries.length < out.entries.length) console.warn(`compose: dropped ${out.entries.length - entries.length}/${out.entries.length} entries with unknown refs`)
   const headline = headlines.includes(out.headline) ? out.headline : ''
-  res.json({ mock: MOCK, composition: { summaryRef, headline, entries, skillRefs, gaps: out.gaps.slice(0, 10) } })
+  res.json({ mock: isMock(), composition: { summaryRef, headline, entries, skillRefs, gaps: out.gaps.slice(0, 10) } })
 }))
 
 // ---------- tailoring guards: the model proposes, these checks decide ----------
@@ -204,7 +204,7 @@ export const acceptBulletEdit = (before, after) => bulletEditProblem(before, aft
 router.post('/resume/tailor', asyncRoute(async (req, res) => {
   const input = validate(TailorRequest, req.body)
   const { analysis, headlines, summaries, roles, bullets, skills } = input
-  const out = MOCK ? mockTailor(input) : await structured({
+  const out = isMock() ? mockTailor(input) : await structured({
     system: TAILOR_SYSTEM,
     stable: [`<material>\n${JSON.stringify({ headlines, summaries, roles, bullets, skills })}\n</material>`],
     volatile: `<job_analysis>\n${JSON.stringify(analysis)}\n</job_analysis>`,
@@ -241,14 +241,14 @@ router.post('/resume/tailor', asyncRoute(async (req, res) => {
     .filter(g => g.group && g.items.length)
   if (Object.keys(refused).length) console.log('tailor: bullets kept as they were —', refused)
 
-  res.json({ mock: MOCK, tailored: { headline, summary, bullets: tailoredBullets, skills: tailoredSkills.length ? tailoredSkills : skills } })
+  res.json({ mock: isMock(), tailored: { headline, summary, bullets: tailoredBullets, skills: tailoredSkills.length ? tailoredSkills : skills } })
 }))
 
 // New tags for the vault, inferred from bullets and target jobs. Demo mode suggests none (the app infers
 // library tags locally).
 router.post('/vault/suggest-tags', asyncRoute(async (req, res) => {
   const { existing, jobs, bullets } = validate(SuggestTagsRequest, req.body)
-  if (MOCK || !bullets.length) return res.json({ mock: MOCK, tags: [] })
+  if (isMock() || !bullets.length) return res.json({ mock: isMock(), tags: [] })
   const out = await structured({
     system: SUGGEST_TAGS_SYSTEM,
     stable: [`<bullets>\n${JSON.stringify(bullets)}\n</bullets>`],
