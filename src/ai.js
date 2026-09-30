@@ -1,29 +1,15 @@
 import { createHash } from 'node:crypto'
 import { createAnthropicProvider } from './providers/anthropic.js'
 import { createOpenAIProvider } from './providers/openai.js'
-import { activeId, configOf } from './integrations.js'
+import { activeId, configOf, migrateEnvKeys } from './integrations.js'
 
-// Which AI to use, decided on every request so switching on the Integrations page needs no restart:
-//   1. the integration chosen on the Integrations page (saved on this machine), else
-//   2. the .env settings: AI_PROVIDER=anthropic|openai, or whichever key is set (Anthropic first), else
-//   3. demo mode (keyword heuristics, no API calls). MOCK=1 always forces demo mode.
+// Which AI to use: the provider chosen on the app's Integrations page, and nothing else. Keys live in the
+// integrations file (see integrations.js), not in .env. With none chosen, AI features report "not connected".
+// MOCK=1 forces demo mode (keyword heuristics, no API calls): used by the tests and the demo recorder.
 
-// Accept common spellings ("OpenAI", "open_ai", "claude"…); anything else is a config error, not a silent fallback.
-const ALIASES = { openai: 'openai', gpt: 'openai', chatgpt: 'openai', anthropic: 'anthropic', claude: 'anthropic' }
-const raw = (process.env.AI_PROVIDER || '').trim()
-const normalised = raw.toLowerCase().replace(/[^a-z]/g, '')
-if (raw && !ALIASES[normalised]) {
-  throw new Error(`AI_PROVIDER="${raw}" isn't recognised. Use "openai" or "anthropic" (or leave it empty to pick from whichever key is set).`)
-}
-
-function envConfig() {
-  const hasAnthropic = !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN)
-  const hasOpenAI = !!process.env.OPENAI_API_KEY
-  const wanted = ALIASES[normalised] || (hasAnthropic ? 'anthropic' : hasOpenAI ? 'openai' : '')
-  if (wanted === 'anthropic' && hasAnthropic) return { id: 'env', source: 'env', kind: 'anthropic', label: 'Anthropic (.env)', model: process.env.CLAUDE_MODEL || 'claude-opus-5' }
-  if (wanted === 'openai' && hasOpenAI) return { id: 'env', source: 'env', kind: 'openai', label: 'OpenAI (.env)', model: process.env.OPENAI_MODEL || 'gpt-5.5' }
-  return null
-}
+// One-time move: keys from an older .env (OPENAI_API_KEY / ANTHROPIC_API_KEY) become integrations, so an
+// existing setup keeps working; after that, .env keys are ignored.
+if (process.env.MOCK !== '1') migrateEnvKeys()
 
 export function buildProvider(cfg) {
   if (cfg.kind === 'anthropic') return createAnthropicProvider({ apiKey: cfg.apiKey || undefined, model: cfg.model })
@@ -36,18 +22,20 @@ export function buildProvider(cfg) {
 let current = { key: null, cfg: null, provider: null }
 function resolve() {
   const saved = activeId() && configOf(activeId())
-  const cfg = process.env.MOCK === '1' ? null : saved ? { ...saved, source: 'integrations' } : envConfig()
+  const cfg = process.env.MOCK === '1' || !saved ? null : { ...saved, source: 'integrations' }
   const key = JSON.stringify(cfg)
   if (key !== current.key) current = { key, cfg, provider: cfg ? buildProvider(cfg) : null }
   return current
 }
 
-export const isMock = () => !resolve().provider
+// Demo mode only when forced (MOCK=1); otherwise no provider means "not connected".
+export const isMock = () => process.env.MOCK === '1'
+export const isConnected = () => !!resolve().provider
 
 // What's in use, for /health and the Integrations page (never includes a key).
 export function providerInfo() {
   const { cfg, provider } = resolve()
-  return { mock: !provider, provider: provider?.name ?? null, model: provider?.model ?? null, label: cfg?.label ?? null, source: cfg?.source ?? null }
+  return { mock: isMock(), connected: !!provider, provider: provider?.name ?? null, model: provider?.model ?? null, label: cfg?.label ?? null, source: cfg?.source ?? null }
 }
 
 // Small in-memory LRU so repeating the same request (same resume + same JD) doesn't pay twice.

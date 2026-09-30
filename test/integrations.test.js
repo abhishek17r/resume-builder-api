@@ -42,9 +42,11 @@ test('saves a key, returns only a masked hint, and stores the file privately', a
 
 test('validates providers and endpoints', async () => {
   assert.equal((await call('PUT', '/api/integrations/nope', { apiKey: 'x' })).status, 400)
-  assert.equal((await call('PUT', '/api/integrations/custom', { model: 'm' })).status, 400) // needs a base URL
-  assert.equal((await call('PUT', '/api/integrations/custom', { baseURL: 'ftp://x', model: 'm' })).status, 400)
-  assert.equal((await call('POST', '/api/integrations/active', { id: 'groq' })).status, 400) // not saved yet
+  assert.equal((await call('PUT', '/api/integrations/groq', { apiKey: 'x' })).status, 400) // coming soon
+  assert.equal((await call('PUT', '/api/integrations/gemini', { baseURL: 'ftp://x', model: 'm' })).status, 400)
+  assert.equal((await call('POST', '/api/integrations/active', { id: 'gemini' })).status, 400) // not saved yet
+  const list = (await call('GET', '/api/integrations')).body.integrations
+  assert.deepEqual(list.filter(i => !i.soon).map(i => i.id), ['openai', 'anthropic', 'gemini'])
 })
 
 test('switches the active provider and removes one', async () => {
@@ -56,8 +58,8 @@ test('switches the active provider and removes one', async () => {
 })
 
 test('testing an unreachable endpoint reports why instead of failing', async () => {
-  await call('PUT', '/api/integrations/custom', { baseURL: 'http://127.0.0.1:9/v1', model: 'local-model' })
-  const { status, body } = await call('POST', '/api/integrations/custom/test')
+  await call('PUT', '/api/integrations/openai', { apiKey: 'sk-test', baseURL: 'http://127.0.0.1:9/v1', model: 'gpt-5-mini' })
+  const { status, body } = await call('POST', '/api/integrations/openai/test')
   assert.equal(status, 200)
   assert.equal(body.ok, false)
   assert.match(body.error, /reach|connect/i)

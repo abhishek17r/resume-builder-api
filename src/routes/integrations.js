@@ -1,19 +1,17 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import { PRESETS, listIntegrations, saveIntegration, removeIntegration, setActive, configOf } from '../integrations.js'
+import { PRESETS, available, listIntegrations, saveIntegration, removeIntegration, setActive, configOf } from '../integrations.js'
 import { buildProvider, providerInfo } from '../ai.js'
+import { localOnly } from '../local.js'
 
 // The Integrations page: bring your own AI provider. These routes hold API keys, so they only answer
 // requests from this computer, and never return a key (only a masked hint).
 export const integrations = Router()
 
-const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
-integrations.use((req, res, next) => (LOOPBACK.has(req.socket.remoteAddress)
-  ? next()
-  : res.status(403).json({ error: { code: 'local_only', message: 'Integrations can only be changed from this computer.' } })))
+integrations.use(localOnly)
 
 const bad = (res, message) => res.status(400).json({ error: { code: 'invalid', message } })
-const known = id => Object.hasOwn(PRESETS, id)
+const known = available // coming-soon providers can't be saved or used yet
 
 const Save = z.object({
   apiKey: z.string().max(500).optional(),
@@ -31,7 +29,6 @@ integrations.put('/:id', (req, res) => {
   const parsed = Save.safeParse(req.body ?? {})
   if (!parsed.success) return bad(res, parsed.error.issues[0]?.message ?? 'Invalid settings.')
   const body = parsed.data
-  if (id === 'custom' && !(body.baseURL ?? configOf(id)?.baseURL)) return bad(res, 'A custom endpoint needs its base URL.')
   saveIntegration(id, body)
   res.json(snapshot())
 })

@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path'
 // Keys are never sent back to the browser: the API returns a masked hint instead.
 
 // kind: how we talk to it. 'openai-compatible' covers anything that speaks the OpenAI chat API.
+// soon: listed as "coming soon" in the app; can't be saved or used yet.
 export const PRESETS = {
   openai: {
     label: 'OpenAI', kind: 'openai', needsKey: true, baseURL: '',
@@ -23,22 +24,22 @@ export const PRESETS = {
     blurb: 'Gemini through Google’s OpenAI-compatible endpoint.',
   },
   openrouter: {
-    label: 'OpenRouter', kind: 'openai-compatible', needsKey: true, baseURL: 'https://openrouter.ai/api/v1',
+    soon: true, label: 'OpenRouter', kind: 'openai-compatible', needsKey: true, baseURL: 'https://openrouter.ai/api/v1',
     models: [], keyUrl: 'https://openrouter.ai/keys',
     blurb: 'One key for hundreds of models from many providers.',
   },
   groq: {
-    label: 'Groq', kind: 'openai-compatible', needsKey: true, baseURL: 'https://api.groq.com/openai/v1',
+    soon: true, label: 'Groq', kind: 'openai-compatible', needsKey: true, baseURL: 'https://api.groq.com/openai/v1',
     models: [], keyUrl: 'https://console.groq.com/keys',
     blurb: 'Very fast inference for open models.',
   },
   ollama: {
-    label: 'Ollama', kind: 'openai-compatible', needsKey: false, baseURL: 'http://localhost:11434/v1',
+    soon: true, label: 'Ollama', kind: 'openai-compatible', needsKey: false, baseURL: 'http://localhost:11434/v1',
     models: ['llama3.1', 'qwen2.5'], keyUrl: 'https://ollama.com/download',
     blurb: 'Models running on your own computer. Nothing leaves your machine.',
   },
   custom: {
-    label: 'Custom endpoint', kind: 'openai-compatible', needsKey: false, baseURL: '',
+    soon: true, label: 'Custom endpoint', kind: 'openai-compatible', needsKey: false, baseURL: '',
     models: [], keyUrl: '',
     blurb: 'Any OpenAI-compatible API: LM Studio, vLLM, Together, a company gateway…',
   },
@@ -64,8 +65,10 @@ function persist() {
 const hint = key => (key ? `••••${key.slice(-4)}` : '')
 
 // The saved config for one provider, with its preset's defaults filled in.
+export const available = id => Object.hasOwn(PRESETS, id) && !PRESETS[id].soon
+
 export function configOf(id) {
-  const preset = PRESETS[id]
+  const preset = available(id) && PRESETS[id]
   const saved = load().providers[id]
   if (!preset || !saved) return null
   return { id, kind: preset.kind, label: preset.label, apiKey: saved.apiKey || '', baseURL: saved.baseURL || preset.baseURL, model: saved.model || preset.models[0] || '' }
@@ -78,12 +81,13 @@ export function listIntegrations() {
     const saved = s.providers[id]
     return {
       id, ...p,
-      configured: !!saved,
+      soon: !!p.soon,
+      configured: !!saved && !p.soon,
       hasKey: !!saved?.apiKey,
       keyHint: hint(saved?.apiKey),
       model: saved?.model || '',
       baseURL: saved?.baseURL || p.baseURL,
-      active: s.active === id,
+      active: s.active === id && !p.soon,
       updatedAt: saved?.updatedAt ?? null,
     }
   })
@@ -118,3 +122,19 @@ export const activeId = () => load().active
 
 // For tests: forget what's cached so the file is read again.
 export function _reset() { state = null }
+
+// Move AI keys from an older .env setup into integrations, once (only when none are saved yet).
+export function migrateEnvKeys() {
+  const s = load()
+  if (Object.keys(s.providers).length) return
+  const found = [
+    process.env.ANTHROPIC_API_KEY && ['anthropic', { apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.CLAUDE_MODEL || PRESETS.anthropic.models[0] }],
+    process.env.OPENAI_API_KEY && ['openai', { apiKey: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL || PRESETS.openai.models[0] }],
+  ].filter(Boolean)
+  if (!found.length) return
+  for (const [id, cfg] of found) s.providers[id] = { ...cfg, baseURL: '', updatedAt: Date.now(), from: 'env' }
+  const wanted = (process.env.AI_PROVIDER || '').toLowerCase()
+  s.active = found.find(([id]) => wanted.startsWith(id.slice(0, 4)))?.[0] ?? found[0][0]
+  persist()
+  console.log(`Moved your AI key${found.length > 1 ? 's' : ''} from .env to Integrations (${found.map(([id]) => PRESETS[id].label).join(', ')}). You can remove them from .env.`)
+}

@@ -4,6 +4,8 @@ import { rateLimit } from 'express-rate-limit'
 import { router } from './routes/optimize.js'
 import { integrations } from './routes/integrations.js'
 import { providerInfo } from './ai.js'
+import { localOnly } from './local.js'
+import { renderPdf, findChrome } from './pdf.js'
 import { ModelError } from './errors.js'
 
 export function createApp() {
@@ -12,9 +14,21 @@ export function createApp() {
 
   app.disable('x-powered-by')
   app.use(cors({ origin: origins }))
+
+  // Resume → PDF with the local Chrome, so Download saves a file without a print dialog.
+  // Its own body limit: the page's HTML and styles are larger than an API request.
+  app.post('/api/pdf', localOnly, express.json({ limit: '20mb' }), async (req, res, next) => {
+    try {
+      const html = req.body?.html
+      if (typeof html !== 'string' || !html.includes('<html')) return res.status(400).json({ error: { code: 'invalid', message: 'Send the resume as an HTML document.' } })
+      const pdf = await renderPdf(html)
+      res.type('application/pdf').send(pdf)
+    } catch (err) { next(err) }
+  })
+
   app.use(express.json({ limit: '1mb' }))
 
-  app.get('/health', (_req, res) => res.json({ ok: true, ...providerInfo() }))
+  app.get('/health', (_req, res) => res.json({ ok: true, ...providerInfo(), pdf: !!findChrome() }))
 
   // AI calls cost money: cap each client.
   app.use('/api', rateLimit({ windowMs: 60_000, limit: Number(process.env.RATE_LIMIT_PER_MIN || 20), standardHeaders: 'draft-8', legacyHeaders: false }))

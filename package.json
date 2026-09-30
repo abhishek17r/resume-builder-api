@@ -6,7 +6,7 @@
   "description": "AI server for Offerstack: job analysis, tailoring, scoring and vault tagging through OpenAI or Anthropic.",
   "main": "src/server.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "dev": "node --watch --env-file-if-exists=.env src/server.js",

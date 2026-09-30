@@ -5,7 +5,7 @@ import { ModelError } from '../errors.js'
 // OpenAI, and any OpenAI-compatible API (Gemini, OpenRouter, Groq, Ollama…), via the official SDK:
 // chat.completions.parse with a strict JSON-schema response format. Compatible servers that don't support
 // JSON schemas get a fallback: ask for a JSON object that follows the schema, then validate it here.
-export function createOpenAIProvider({ apiKey = process.env.OPENAI_API_KEY, baseURL, model = process.env.OPENAI_MODEL || 'gpt-5.5', name = 'openai', compatible = false } = {}) {
+export function createOpenAIProvider({ apiKey, baseURL, model = 'gpt-5.5', name = 'openai', compatible = false } = {}) {
   const client = new OpenAI({ apiKey: apiKey || 'not-needed', ...(baseURL ? { baseURL } : {}) })
   // reasoning_effort only applies to OpenAI's reasoning models (gpt-5 family, o-series).
   const reasoning = !compatible && /^(gpt-5|o\d)/.test(model)

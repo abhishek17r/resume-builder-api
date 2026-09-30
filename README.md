@@ -1,6 +1,6 @@
 # Offerstack AI server
 
-The local AI server for [Offerstack](https://github.com/abhishek17r/resume-builder): job analysis, tailoring, scoring and vault tagging through **OpenAI** or **Anthropic (Claude)**. It runs on your machine next to the app and holds your API key; the browser never sees it.
+The local AI server for [Offerstack](https://github.com/abhishek17r/resume-builder): job analysis, tailoring, scoring and vault tagging through **OpenAI**, **Anthropic (Claude)** or **Google Gemini**, plus PDF export. It runs on your machine next to the app and holds your API key; the browser never sees it.
 
 Most people don't run this on its own: the [one-line installer](https://github.com/abhishek17r/resume-builder#quickstart) sets up both, and `npm run dev` in the app starts this server too.
 
@@ -8,11 +8,13 @@ Most people don't run this on its own: the [one-line installer](https://github.c
 
 ```bash
 npm install
-cp .env.example .env   # add OPENAI_API_KEY or ANTHROPIC_API_KEY
+cp .env.example .env   # optional: port, origins, rate limit
 npm run dev            # http://localhost:8787
 ```
 
-**Choosing the AI.** The easiest way is the app's **Integrations** page: connect OpenAI, Anthropic, Google Gemini, OpenRouter, Groq, Ollama (local) or any OpenAI-compatible endpoint, test it and switch any time, with no restart. Those settings are saved in `.data/integrations.json` (git-ignored, readable only by your user); keys are never returned to the browser. Without a provider chosen there, the server falls back to `.env`: `AI_PROVIDER=openai|anthropic`, or whichever key is set. With no key the server starts in **demo mode**: endpoints return keyword-heuristic results with `"mock": true`, so the app works end to end for development.
+**Choosing the AI.** Only through the app's **Integrations** page: connect OpenAI, Anthropic or Google Gemini with your own key, test it and switch any time, with no restart (OpenRouter, Groq, Ollama and custom endpoints are coming soon). Settings are saved in `.data/integrations.json` (git-ignored, readable only by your user); keys are never returned to the browser. AI keys in `.env` are not used: ones left from an older setup are moved to Integrations once, on first start. Until a provider is connected, AI endpoints answer `503 ai_not_connected`. For development and tests, `MOCK=1` starts the server in **demo mode** (keyword-heuristic results with `"mock": true`, no AI calls).
+
+**PDF export.** `POST /api/pdf` renders the app's print view with the Chrome, Chromium, Edge or Brave already installed (set `CHROME_PATH` if it isn't found), so the app can save a PDF straight to your downloads without a print dialog.
 
 ## Endpoints
 
@@ -20,7 +22,8 @@ All return JSON; errors are `{ "error": { "code", "message" } }`.
 
 | Method | Path | Body | Returns |
 |---|---|---|---|
-| GET | `/health` | – | `{ ok, mock, provider, model }` |
+| GET | `/health` | – | `{ ok, mock, connected, provider, model, label, pdf }` |
+| POST | `/api/pdf` | `{ html }` (a complete document) | the PDF (`application/pdf`); page size from the document's `@page` |
 | POST | `/api/jd/analyze` | `{ jobDescription }` | `{ analysis }` — title, company, seniority, requirements (must/nice, keywords) |
 | POST | `/api/jd/match` | `{ resume, analysis }` | `{ match }` — matchScore, per-requirement covered/partial/missing with evidence refs |
 | POST | `/api/jd/suggest` | `{ resume, analysis, match }` | `{ suggestions }` — tracked-change edits (rewrite bullet/summary, add skill, move bullet up) |
@@ -29,10 +32,10 @@ All return JSON; errors are `{ "error": { "code", "message" } }`.
 | POST | `/api/vault/match` | `{ analysis, coverage, candidates }` | `{ picks }` — vault bullets that evidence a job's requirements, by ref |
 | POST | `/api/vault/suggest-tags` | `{ existing, jobs, bullets }` | `{ tags }` — new tag proposals backed by at least 2 bullets |
 | POST | `/api/resume/compose` | `{ analysis, targetBullets, headlines, items }` | `{ composition }` — which vault roles, bullets, skills, summary and headline to use, by ref |
-| GET | `/api/integrations` | – | `{ integrations, current }` — every provider preset with its saved model and a masked key hint; what's in use |
-| PUT | `/api/integrations/:id` | `{ apiKey?, model?, baseURL? }` | save a provider (omit `apiKey` to keep the saved one) |
+| GET | `/api/integrations` | – | `{ integrations, current }` — every provider (with `soon: true` for coming-soon ones), its saved model and a masked key hint; what's in use |
+| PUT | `/api/integrations/:id` | `{ apiKey?, model? }` | save a provider (omit `apiKey` to keep the saved one) |
 | POST | `/api/integrations/:id/test` | – | `{ ok, latencyMs, models, error? }` — lists the provider's models and makes one tiny call |
-| POST | `/api/integrations/active` | `{ id \| null }` | use this provider (`null`: back to `.env` or demo mode) |
+| POST | `/api/integrations/active` | `{ id \| null }` | use this provider (`null`: disconnect) |
 | DELETE | `/api/integrations/:id` | – | remove a provider and its key |
 | POST | `/api/resume/tailor` | `{ analysis, headlines, summaries, roles, bullets, skills }` | `{ tailored }` — headline, summary, lightly edited bullets and skills; each edit passes the guards or the original is kept |
 
@@ -51,7 +54,7 @@ All return JSON; errors are `{ "error": { "code", "message" } }`.
 ## Test
 
 ```bash
-npm test   # runs in demo mode, no key needed
+npm test   # runs in demo mode, no key needed (the PDF test needs Chrome)
 ```
 
 ## Licence

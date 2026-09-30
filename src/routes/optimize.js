@@ -1,10 +1,15 @@
 import { Router } from 'express'
-import { structured, isMock } from '../ai.js'
+import { structured, isMock, isConnected } from '../ai.js'
 import { AnalyzeRequest, MatchRequest, SuggestRequest, ImproveRequest, JobAnalysis, MatchResult, Suggestions, Rewrites, TagRequest, TagResult, VaultMatchRequest, VaultPicks, ComposeRequest, Composition, TailorRequest, Tailored, SuggestTagsRequest, TagSuggestions } from '../schemas.js'
 import { ANALYZE_SYSTEM, MATCH_SYSTEM, SUGGEST_SYSTEM, IMPROVE_SYSTEM, TAG_SYSTEM, VAULT_MATCH_SYSTEM, COMPOSE_SYSTEM, TAILOR_SYSTEM, SUGGEST_TAGS_SYSTEM } from '../prompts.js'
 import { mockAnalyze, mockMatch, mockSuggest, mockImprove, mockVaultMatch, mockCompose, mockTailor } from '../mock.js'
 
 export const router = Router()
+
+// Every AI endpoint needs a provider connected on the Integrations page (demo mode aside).
+router.use((_req, res, next) => (isMock() || isConnected()
+  ? next()
+  : res.status(503).json({ error: { code: 'ai_not_connected', message: 'AI isn’t connected. Connect OpenAI, Anthropic or Gemini on the Integrations page.' } })))
 
 // Validate the body with a Zod schema; respond 400 with the first problem.
 const validate = (schema, body) => {

@@ -3,8 +3,9 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { ModelError } from '../errors.js'
 
 // Claude via the Anthropic SDK: one messages.parse call with a Zod output format.
-export function createAnthropicProvider({ apiKey, model = process.env.CLAUDE_MODEL || 'claude-opus-5' } = {}) {
-  const client = new Anthropic(apiKey ? { apiKey } : {})
+export function createAnthropicProvider({ apiKey, model = 'claude-opus-5' } = {}) {
+  // Always the key from Integrations: never fall back to ANTHROPIC_API_KEY in the environment.
+  const client = new Anthropic({ apiKey: apiKey || 'missing', authToken: null })
 
   async function structured({ system, stable = [], volatile, schema, effort = 'medium', maxTokens = 16000 }) {
     // Stable blocks (e.g. the resume, reused across match → suggest) come first with a cache breakpoint.
