@@ -7,6 +7,7 @@ import { providerInfo } from './ai.js'
 import { localOnly } from './local.js'
 import { renderPdf, findChrome } from './pdf.js'
 import { ModelError } from './errors.js'
+import { bridge } from './bridge.js'
 
 export function createApp() {
   const app = express()
@@ -25,6 +26,9 @@ export function createApp() {
       res.type('application/pdf').send(pdf)
     } catch (err) { next(err) }
   })
+
+  // Claude ↔ the open app (see bridge.js). Before the AI rate limit: these aren't AI calls.
+  app.use('/api/bridge', bridge)
 
   app.use(express.json({ limit: '1mb' }))
 
