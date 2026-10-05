@@ -43,7 +43,11 @@ async function launch() {
     proc.on('exit', () => { clearTimeout(timer); reject(new Error('The browser for PDFs closed unexpectedly.')) })
   })
   const b = { proc, port, profile, idle: null }
-  proc.on('exit', () => { if (browser === b) browser = null; rmSync(profile, { recursive: true, force: true }) })
+  proc.on('exit', () => {
+    if (browser === b) browser = null
+    // Chrome may still be flushing its profile as it exits: retry, and never let cleanup crash the server.
+    try { rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }) } catch { /* temp dir; the OS cleans it */ }
+  })
   return b
 }
 
