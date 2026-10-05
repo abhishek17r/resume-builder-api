@@ -41,16 +41,6 @@ All return JSON; errors are `{ "error": { "code", "message" } }`.
 
 `resume` is the compact payload the frontend builds: sections → entries → numbered bullets. Every reference the model returns is checked against it before responding.
 
-## MCP server (chat with Claude)
-
-`mcp/server.js` is an MCP server over stdio. Claude reads your resumes and vault and pushes changes into the app:
-
-```bash
-claude mcp add offerstack -- node "$(pwd)/mcp/server.js"
-```
-
-Resumes live in the browser, so the server relays through a small bridge (`src/bridge.js`): the open app sends a compact snapshot (`PUT /api/bridge/snapshot`) and listens for commands on a server-sent event stream (`GET /api/bridge/events`); the MCP server reads the snapshot and posts commands (`POST /api/bridge/commands`), which wait for the app's result. Everything is local-only and in memory. Tools: `list_resumes`, `get_resume`, `search_vault`, `add_to_vault`, `update_vault_bullet`, `add_bullets_to_resume`, `replace_resume_bullet`, `set_resume_summary`, `open_resume`. Set `OFFERSTACK_API` if the server isn't on `http://127.0.0.1:8787`.
-
 ## Design notes
 
 - **Providers** (`src/providers/`): OpenAI uses `chat.completions.parse` with a strict JSON-schema response format; Anthropic uses `messages.parse` with a Zod output format. Both take the same Zod schemas (`src/schemas.js`), prompts and checks — one structured call per endpoint, no chat.

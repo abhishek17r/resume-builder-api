@@ -11,12 +11,10 @@
   "scripts": {
     "dev": "node --watch --env-file-if-exists=.env src/server.js",
     "start": "node --env-file-if-exists=.env src/server.js",
-    "test": "MOCK=1 node --test \"test/**/*.test.js\"",
-    "mcp": "node mcp/server.js"
+    "test": "MOCK=1 node --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
-    "@modelcontextprotocol/sdk": "^1.32.1",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
@@ -27,8 +25,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/abhishek17r/resume-builder-api.git"
-  },
-  "bin": {
-    "offerstack-mcp": "mcp/server.js"
   }
 }
