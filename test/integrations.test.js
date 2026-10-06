@@ -7,11 +7,11 @@ import { createApp } from '../src/server.js'
 import { _reset } from '../src/integrations.js'
 
 // Integrations are saved to a throwaway data folder; keys must never come back to the client.
-const dir = mkdtempSync(join(tmpdir(), 'resume-tool-int-'))
+const dir = mkdtempSync(join(tmpdir(), 'refit-int-'))
 let server
 let base
 before(() => new Promise(resolve => {
-  process.env.RESUME_TOOL_DATA = dir
+  process.env.REFIT_DATA = dir
   _reset()
   server = createApp().listen(0, '127.0.0.1', () => { base = `http://127.0.0.1:${server.address().port}`; resolve() })
 }))

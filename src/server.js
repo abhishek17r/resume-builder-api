@@ -54,6 +54,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const host = process.env.HOST || '127.0.0.1'
   createApp().listen(port, host, () => {
     const p = providerInfo()
-    console.log(`resume-tool AI server on http://localhost:${port} — ${p.mock ? 'DEMO MODE (no provider set up; heuristic results)' : `${p.label} · ${p.model}`}`)
+    console.log(`refit AI server on http://localhost:${port} — ${p.mock ? 'DEMO MODE (no provider set up; heuristic results)' : `${p.label} · ${p.model}`}`)
   })
 }

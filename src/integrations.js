@@ -45,7 +45,7 @@ export const PRESETS = {
   },
 }
 
-const dataDir = () => resolve(process.env.RESUME_TOOL_DATA || '.data')
+const dataDir = () => resolve(process.env.REFIT_DATA || '.data')
 const dataFile = () => join(dataDir(), 'integrations.json')
 
 let state = null

@@ -1,9 +1,9 @@
 {
-  "name": "resume-tool-api",
+  "name": "refit-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Local AI server for resume-tool: job analysis, tailoring, scoring and vault tagging with your own OpenAI, Anthropic or Gemini key.",
+  "description": "Local AI server for refit: job analysis, tailoring, scoring and vault tagging with your own OpenAI, Anthropic or Gemini key.",
   "main": "src/server.js",
   "engines": {
     "node": ">=22"

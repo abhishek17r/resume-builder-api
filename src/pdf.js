@@ -30,7 +30,7 @@ let launching = null // one start at a time, even for simultaneous requests
 async function launch() {
   const exe = findChrome()
   if (!exe) throw Object.assign(new Error('No Chrome, Chromium, Edge or Brave found. Set CHROME_PATH, or use the print dialog.'), { status: 501, code: 'no_browser' })
-  const profile = mkdtempSync(join(tmpdir(), 'resume-tool-pdf-'))
+  const profile = mkdtempSync(join(tmpdir(), 'refit-pdf-'))
   const proc = spawn(exe, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] })
   const port = await new Promise((resolve, reject) => {
     let out = ''
