@@ -1,6 +1,6 @@
-# Offerstack AI server
+# resume-tool AI server
 
-The local AI server for [Offerstack](https://github.com/abhishek17r/resume-builder): job analysis, tailoring, scoring and vault tagging through **OpenAI**, **Anthropic (Claude)** or **Google Gemini**, plus PDF export. It runs on your machine next to the app and holds your API key; the browser never sees it.
+The local AI server for [resume-tool](https://github.com/abhishek17r/resume-builder): job analysis, tailoring, scoring and vault tagging through **OpenAI**, **Anthropic (Claude)** or **Google Gemini**, plus PDF export. It runs on your machine next to the app and holds your API key; the browser never sees it.
 
 Most people don't run this on its own: the [one-line installer](https://github.com/abhishek17r/resume-builder#quickstart) sets up both, and `npm run dev` in the app starts this server too.
 

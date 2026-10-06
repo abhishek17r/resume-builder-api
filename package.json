@@ -1,9 +1,9 @@
 {
-  "name": "offerstack-api",
+  "name": "resume-tool-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "AI server for Offerstack: job analysis, tailoring, scoring and vault tagging through OpenAI or Anthropic.",
+  "description": "Local AI server for resume-tool: job analysis, tailoring, scoring and vault tagging with your own OpenAI, Anthropic or Gemini key.",
   "main": "src/server.js",
   "engines": {
     "node": ">=22"
