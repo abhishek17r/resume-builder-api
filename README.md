@@ -59,4 +59,4 @@ npm test   # runs in demo mode, no key needed (the PDF test needs Chrome)
 
 ## Licence
 
-[AGPL-3.0](LICENSE) © Abhishek Ranjan. Contributions are accepted under the [CLA](https://github.com/abhishek17r/resume-builder/blob/main/CLA.md).
+[AGPL-3.0](LICENSE) © Abhishek Ranjan. A personal, non-commercial open source project. Contributions are accepted under the AGPL-3.0, with a sign-off on each commit ([DCO](https://developercertificate.org)).
